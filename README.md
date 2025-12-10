@@ -13,7 +13,7 @@ A high-performance real-time speech-to-text and translation application built fo
 ## Demo
 <video width="640" height="360" controls>
   <!-- 本地文件路径或网络 URL -->
-  <source src="demo/demo%20screenshot.mp4" type="video/mp4">
+  <source src="https://pingze.oss-cn-hangzhou.aliyuncs.com/demo%20screenshot.mp4" type="video/mp4">
   您的浏览器不支持 video 标签。<a href="demo/demo%20screenshot.mp4">下载视频</a>
 </video>
 

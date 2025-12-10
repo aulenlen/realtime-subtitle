@@ -117,6 +117,9 @@ class Pipeline(QObject):
         
         # Generator yielding small chunks (e.g. 0.2s)
         audio_gen = self.audio.generator()
+        
+        # Context Management
+        self.last_final_text = ""
 
         try:
             for audio_chunk in audio_gen:
@@ -127,19 +130,24 @@ class Pipeline(QObject):
                 buffer_duration = len(buffer) / self.audio.sample_rate
                 
                 # Check silence for finalization
-                # Check last 0.5s for silence
+                # Use configured silence duration/threshold
                 is_silence = False
-                if buffer_duration > 0.5:
-                    tail = buffer[-int(self.audio.sample_rate*0.5):]
+                min_silence_dur = config.silence_duration # e.g. 1.0s
+                
+                # Only check silence if we have enough buffer
+                if buffer_duration > min_silence_dur:
+                     # Check tail of silence duration
+                    tail = buffer[-int(self.audio.sample_rate * min_silence_dur):]
                     rms = np.sqrt(np.mean(tail**2))
                     if rms < self.audio.silence_threshold:
                         is_silence = True
                 
                 # DECISION: Finalize vs Partial Update
                 
-                # 1. Finalize if: Long enough AND silence OR Max duration reached
+                # 1. Finalize if: (Long enough AND silence) OR Max duration reached
+                # Require at least 2.0s duration if using silence test (prevent chopping short phrases)
                 should_finalize = (
-                    (is_silence and buffer_duration > 1.5) or 
+                    (is_silence and buffer_duration > 2.0) or 
                     (buffer_duration > self.audio.max_phrase_duration)
                 )
                 
@@ -148,8 +156,11 @@ class Pipeline(QObject):
                     final_buffer = buffer.copy()
                     cid = chunk_id
                     
+                    # Store current prompt to pass to task (thread safety)
+                    prompt = self.last_final_text
+                    
                     # Submit Final Task
-                    transcribe_executor.submit(self._process_final_chunk, final_buffer, cid)
+                    transcribe_executor.submit(self._process_final_chunk, final_buffer, cid, prompt)
                     
                     # Reset
                     buffer = np.array([], dtype=np.float32)
@@ -161,7 +172,8 @@ class Pipeline(QObject):
                 elif now - last_update_time > config.update_interval and buffer_duration > 0.5:
                     # PARTIAL UPDATE
                     partial_buffer = buffer.copy()
-                    transcribe_executor.submit(self._process_partial_chunk, partial_buffer, chunk_id)
+                    prompt = self.last_final_text
+                    transcribe_executor.submit(self._process_partial_chunk, partial_buffer, chunk_id, prompt)
                     last_update_time = now
                     
         except Exception as e:
@@ -170,23 +182,26 @@ class Pipeline(QObject):
             transcribe_executor.shutdown(wait=False)
             translate_executor.shutdown(wait=False)
 
-    def _process_partial_chunk(self, audio_data, chunk_id):
+    def _process_partial_chunk(self, audio_data, chunk_id, prompt=""):
         """Transcribe and update UI (No translation)"""
         try:
-            # Use lower quality / faster settings for partial?
-            # Actually standard transcribe is fast enough on M3
-            text = self.transcriber.transcribe(audio_data)
+            # Use accumulated context as prompt
+            text = self.transcriber.transcribe(audio_data, prompt=prompt)
             if text:
                 self.signals.update_text.emit(chunk_id, text, "")
         except Exception as e:
             print(f"[Partial {chunk_id}] Error: {e}")
 
-    def _process_final_chunk(self, audio_data, chunk_id):
+    def _process_final_chunk(self, audio_data, chunk_id, prompt=""):
         """Transcribe, Log, and Trigger Translation"""
         try:
-            text = self.transcriber.transcribe(audio_data)
+            text = self.transcriber.transcribe(audio_data, prompt=prompt)
             if text:
                 print(f"[Final {chunk_id}] Transcribed: {text}")
+                # Save for context (only if meaningful)
+                if len(text.split()) > 2:
+                    self.last_final_text = text
+                
                 # Emit final transcription first (confirms text)
                 self.signals.update_text.emit(chunk_id, text, "")
                 
@@ -195,7 +210,6 @@ class Pipeline(QObject):
                 print(f"[Final {chunk_id}] Translated: {translated}")
                 self.signals.update_text.emit(chunk_id, text, translated)
             else:
-                # If empty, maybe just ignore or clear "..."?
                 pass
         except Exception as e:
             print(f"[Final {chunk_id}] Error: {e}")

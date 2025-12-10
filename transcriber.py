@@ -15,11 +15,11 @@ class Transcriber:
             self.model = WhisperModel(model_size, device=device, compute_type=compute_type)
             print(f"[Transcriber] Using faster-whisper (CPU/CUDA) with model: {model_size}")
 
-    def transcribe(self, audio_data):
+    def transcribe(self, audio_data, prompt=None):
         if self.use_mlx:
-            text = self._transcribe_mlx(audio_data)
+            text = self._transcribe_mlx(audio_data, prompt)
         else:
-            text = self._transcribe_faster_whisper(audio_data)
+            text = self._transcribe_faster_whisper(audio_data, prompt)
             
         # Filter hallucinations (infinite loops, e.g. "once once once")
         if self._is_hallucination(text):
@@ -65,30 +65,34 @@ class Transcriber:
                 
         return False
 
-    def _transcribe_mlx(self, audio_data):
+    def _transcribe_mlx(self, audio_data, prompt=None):
         import mlx_whisper
         # mlx_whisper.transcribe takes audio and other kwargs
         # We need to ensure audio_data is in the format MLX expects (usually numpy array)
         
         try:
-            result = mlx_whisper.transcribe(
-                audio_data,
-                path_or_hf_repo=f"mlx-community/whisper-{self.model_size}-mlx", # Mapping to likely MLX model repo
-                language=self.language,
-                # Add hallucination penalties if possible, but MLX might not support all yet
-                temperature=0.0  # Greedy decoding helps reduce hallucinations
-            )
+            # Prepare kwargs
+            kwargs = {
+                "path_or_hf_repo": f"mlx-community/whisper-{self.model_size}-mlx",
+                "language": self.language,
+                "temperature": 0.0
+            }
+            if prompt:
+                kwargs["initial_prompt"] = prompt
+                
+            result = mlx_whisper.transcribe(audio_data, **kwargs)
             return result.get("text", "").strip()
         except Exception as e:
             print(f"[Transcriber] MLX Error: {e}")
             return ""
 
-    def _transcribe_faster_whisper(self, audio_data):
+    def _transcribe_faster_whisper(self, audio_data, prompt=None):
         segments, _ = self.model.transcribe(
             audio_data, 
             language=self.language, 
             beam_size=5,
-            condition_on_previous_text=False, # Helps preventing loops
+            condition_on_previous_text=False, # We manage context manually if needed
+            initial_prompt=prompt,
             no_speech_threshold=0.6
         )
         text = " ".join([segment.text for segment in segments]).strip()

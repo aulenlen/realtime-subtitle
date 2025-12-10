@@ -11,11 +11,7 @@ A high-performance real-time speech-to-text and translation application built fo
 - **💾 Transcript Saving**: One-click save of your session history.
 
 ## Demo
-<video width="640" height="360" controls>
-  <!-- 本地文件路径或网络 URL -->
-  <source src="https://pingze.oss-cn-hangzhou.aliyuncs.com/demo%20screenshot.mp4" type="video/mp4">
-  您的浏览器不支持 video 标签。<a href="demo/demo%20screenshot.mp4">下载视频</a>
-</video>
+https://user-images.githubusercontent.com/6877923/123006036-64e2e780-d3b7-11eb-922e-018994b32da5.mov
 
 ## Installation
 

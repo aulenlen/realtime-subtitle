@@ -1,0 +1,7 @@
+PyQt6
+faster-whisper
+sounddevice
+numpy
+openai
+keyboard
+watchdog

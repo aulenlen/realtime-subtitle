@@ -213,8 +213,6 @@ class OverlayWindow(QWidget):
         
         grip_layout.addWidget(self.save_btn)
         
-        grip_layout.addWidget(self.save_btn)
-        
         # Stop Button
         self.stop_btn = QPushButton("⏹")
         self.stop_btn.setToolTip("Stop Translator")
@@ -234,8 +232,6 @@ class OverlayWindow(QWidget):
         """)
         self.stop_btn.clicked.connect(self.stop_requested.emit)
         grip_layout.addWidget(self.stop_btn)
-        
-        grip_layout.addStretch()
         
         grip_layout.addStretch()
         

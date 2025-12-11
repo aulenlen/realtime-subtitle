@@ -179,7 +179,8 @@ class Pipeline(QObject):
                          print(f"[Pipeline] Skipped silent chunk {cid} (RMS={overall_rms:.4f})")
                     else:
                         # Submit Final Task
-                        transcribe_executor.submit(self._process_final_chunk, final_buffer, cid, prompt)
+                        # Pass prompt AND translate_executor for async translation
+                        transcribe_executor.submit(self._process_final_chunk, final_buffer, cid, prompt, translate_executor)
                     
                     # Reset
                     buffer = np.array([], dtype=np.float32)
@@ -216,8 +217,8 @@ class Pipeline(QObject):
         except Exception as e:
             print(f"[Partial {chunk_id}] Error: {e}")
 
-    def _process_final_chunk(self, audio_data, chunk_id, prompt=""):
-        """Transcribe, Log, and Trigger Translation"""
+    def _process_final_chunk(self, audio_data, chunk_id, prompt="", translate_executor=None):
+        """Transcribe, Log, and Trigger Translation Async"""
         try:
             text = self.transcriber.transcribe(audio_data, prompt=prompt)
             if text:
@@ -227,16 +228,25 @@ class Pipeline(QObject):
                     self.last_final_text = text
                 
                 # Emit final transcription first (confirms text)
-                self.signals.update_text.emit(chunk_id, text, "")
+                self.signals.update_text.emit(chunk_id, text, "(translating...)")
                 
-                # Translate
-                translated = self.translator.translate(text)
-                print(f"[Final {chunk_id}] Translated: {translated}")
-                self.signals.update_text.emit(chunk_id, text, translated)
+                # Offload translation to separate thread so we don't block next transcription
+                if translate_executor:
+                    translate_executor.submit(self._run_translation, text, chunk_id)
             else:
                 pass
         except Exception as e:
             print(f"[Final {chunk_id}] Error: {e}")
+
+    def _run_translation(self, text, chunk_id):
+        """Run translation in background and emit result"""
+        try:
+            translated = self.translator.translate(text)
+            print(f"[Final {chunk_id}] Translated: {translated}")
+            self.signals.update_text.emit(chunk_id, text, translated)
+        except Exception as e:
+            print(f"[Translation {chunk_id}] Failed: {e}")
+            self.signals.update_text.emit(chunk_id, text, "[Translation Failed]")
     
     def _transcribe_chunk(self, transcriber, audio_chunk, chunk_id):
         """Transcribe a single chunk and log timing"""

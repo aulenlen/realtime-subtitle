@@ -67,6 +67,7 @@ Double-click `start_windows.bat`
 | `base_url` | API Endpoint URL | `https://api.openai.com/v1` (OpenAI)<br>`http://localhost:11434/v1` (Ollama)<br>`https://api.siliconflow.cn/v1` | Determines which server handles the translation. Localhost is free but requires hardware. |
 | `api_key` | Authentication Key | `sk-...` | Required for authentication. Use `dummy` for local servers like Ollama. |
 | `model` | LLM for Translation | `gpt-3.5-turbo`, `gpt-4`, `llama3:8b`, `qwen2.5:7b` | **Accuracy vs Speed**. Larger models translate better but may be slower. |
+| `threads` | Concurrent Requests | `1` - `16` (Default `4`) | Number of sentences translated at once. Increase if speaking fast to prevent dropping. |
 | `target_lang` | Output Language | `Chinese`, `English`, `French`, `Japanese` | The language you want to see translated text in. |
 
 #### `[transcription]` Section (Speech-to-Text)

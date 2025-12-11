@@ -53,6 +53,14 @@ class SettingsWindow(QWidget):
         
         form_layout.addRow("Translation Model:", model_row)
         
+        # Translation Threads
+        self.threads_input = QSpinBox()
+        self.threads_input.setRange(1, 16)
+        self.threads_input.setValue(config.translation_threads)
+        self.threads_input.setSuffix(" threads")
+        self.threads_input.setToolTip("Number of concurrent translation requests (Increase for fast speakers)")
+        form_layout.addRow("Translate Threads:", self.threads_input)
+        
         # Whisper Model
         self.whisper_input = QComboBox()
         self.whisper_input.addItems(["tiny", "base", "small", "medium", "large", "turbo"])
@@ -172,6 +180,7 @@ class SettingsWindow(QWidget):
         parser.set("api", "api_key", self.api_key_input.text() or "")
         parser.set("api", "base_url", self.base_url_input.text() or "")
         parser.set("translation", "model", self.model_input.currentText())
+        parser.set("translation", "threads", str(self.threads_input.value()))
         parser.set("transcription", "whisper_model", self.whisper_input.currentText())
         parser.set("audio", "streaming_step_size", str(self.step_size_input.value()))
         parser.set("audio", "max_phrase_duration", str(self.max_phrase_input.value()))

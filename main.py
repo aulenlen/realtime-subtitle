@@ -110,7 +110,7 @@ class Pipeline(QObject):
         
         # Executors
         transcribe_executor = ThreadPoolExecutor(max_workers=1) # Serial transcription
-        translate_executor = ThreadPoolExecutor(max_workers=2)
+        translate_executor = ThreadPoolExecutor(max_workers=config.translation_threads)
         
         # State
         buffer = np.array([], dtype=np.float32)

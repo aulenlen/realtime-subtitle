@@ -86,7 +86,8 @@ class Translator:
                     {"role": "user", "content": text}
                 ],
                 temperature=0.3,
-                max_tokens=500  # Increased to handle thinking tokens
+                max_tokens=500,  # Increased to handle thinking tokens
+                timeout=10.0     # 10s timeout to prevent hanging
             )
             raw_result = response.choices[0].message.content.strip()
             # Strip thinking tags if present
